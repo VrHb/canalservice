@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 import requests
@@ -10,6 +11,7 @@ from dotenv import load_dotenv
 
 from pprint import pprint
 
+from db_operations import request_to_db
 
 
 
@@ -24,12 +26,13 @@ def get_usd_exchange_rate():
             return float(usd_exchange.replace(',', '.'))
 
 
-def upload_to_db():
-    pass
-
-
 def main():
     load_dotenv()
+    db_host = os.getenv('DB_HOST')
+    db_name = os.getenv('DB_NAME')
+    db_password = os.getenv('DB_PASSWORD')
+    db_user = os.getenv('DB_USERNAME')
+    db_port = os.getenv('DB_PORT')
     google_credentials_file_path = os.path.join(
         os.path.dirname(__file__),
         os.getenv('GOOGLE_GREDENTIALS_FILENAME')
@@ -44,13 +47,30 @@ def main():
     authorization = credentials.authorize(httplib2.Http())
     service = discovery.build('sheets', 'v4', http=authorization)
     request = service.spreadsheets().values().batchGet(
-        spreadsheetId=spreadsheet_id, ranges=['Лист1'])
+        spreadsheetId=spreadsheet_id, ranges=['Лист1']
+    )
     rows = request.execute()['valueRanges'][0]['values']
     for row in rows[1:]:
         usd_price = int(row[2])
         usd_exchange_rate = get_usd_exchange_rate()
         rub_price = int(usd_price * usd_exchange_rate)
-        print(rub_price)
+        row.append(rub_price)
+        date = datetime.strptime(row[3].replace('.', '-'), '%d-%m-%Y').date()
+        request_to_db(
+            db_user,
+            db_password,
+            db_host,
+            db_port,
+            db_name,
+            query=(
+                f"""
+                insert into canalservice 
+                (id, order_id, usd_price, rub_price, delivery_time)
+                values
+                ({row[0]}, {row[1]}, {row[2]}, {row[4]}, date '{date}')
+                """ 
+            )
+        )
 
 
 if __name__ == '__main__':
