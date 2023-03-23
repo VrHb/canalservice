@@ -3,15 +3,12 @@ import os
 
 import requests
 from xml.etree import ElementTree
-
 import httplib2
 from googleapiclient import discovery
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
 
-from pprint import pprint
-
-from db_operations import request_to_db
+from db_operations import request_to_db, create_table
 
 
 
@@ -50,6 +47,16 @@ def main():
         spreadsheetId=spreadsheet_id, ranges=['Лист1']
     )
     rows = request.execute()['valueRanges'][0]['values']
+    print([tuple(row) for row in rows])
+    '''
+    create_table(
+        db_user,
+        db_password,
+        db_host,
+        db_port,
+        db_name,
+        'canalservice'
+    )
     for row in rows[1:]:
         usd_price = int(row[2])
         usd_exchange_rate = get_usd_exchange_rate()
@@ -68,10 +75,11 @@ def main():
                 (id, order_id, usd_price, rub_price, delivery_time)
                 values
                 ({row[0]}, {row[1]}, {row[2]}, {row[4]}, date '{date}')
+                on conflict do nothing
                 """ 
             )
         )
-
+    '''
 
 if __name__ == '__main__':
     main()
